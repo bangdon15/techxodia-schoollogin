@@ -1,0 +1,32 @@
+# Node & Next.js
+node_modules/
+.next/
+out/
+build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.env*.local
+
+# Android & Gradle
+.gradle/
+build/
+app/build/
+apps/android-kiosk/app/build/
+apps/android-kiosk/build/
+local.properties
+.idea/
+*.iml
+*.hprof
+.cxx/
+captures/
+
+# APK & Binaries (Over 100MB; attach to GitHub Releases instead)
+*.apk
+*.aab
+
+# OS & Temp
+.DS_Store
+Thumbs.db
+*.log

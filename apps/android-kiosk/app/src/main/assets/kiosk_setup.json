@@ -1,0 +1,13 @@
+{
+  "tenant_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+  "kiosk_id": "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b22",
+  "device_name": "North Gate Tablet 01",
+  "device_token": "kiosk_secret_token_oakridge_north_gate",
+  "location_tag": "North Campus Turnstiles",
+  "supabase_url": "https://your-supabase-project.supabase.co",
+  "school_name": "Oakridge International Academy",
+  "logo_url": "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=128&auto=format&fit=crop&q=80",
+  "primary_color": "#1E3A8A",
+  "secondary_color": "#F59E0B",
+  "accent_color": "#10B981"
+}
