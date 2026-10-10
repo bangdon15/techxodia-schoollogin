@@ -74,11 +74,14 @@ Execute `supabase/migrations/20261004_consolidated_school_attendance_system.sql`
 * Deploy the atomic `verify_and_log_attendance` RPC function.
 
 ### 2. Admin Web Portal (`apps/web-admin`)
+* **Production URL:** [https://web-admin-tau-three.vercel.app](https://web-admin-tau-three.vercel.app)
+
+To run locally in development mode:
 ```bash
 cd apps/web-admin
 npm install
 
-# Configure environment variables
+# Configure environment variables (.env.local from .env.example)
 # NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 # NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 

@@ -11,6 +11,7 @@ import {
   FileSpreadsheet,
   LogOut,
   Sparkles,
+  UserPlus,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -20,6 +21,7 @@ export function Sidebar() {
     { label: "Live Monitoring", href: "/", icon: Activity },
     { label: "Attendance Feed", href: "/attendance", icon: FileSpreadsheet },
     { label: "Students & Staff", href: "/students", icon: Users },
+    { label: "Faculty Registration", href: "/register", icon: UserPlus },
     { label: "Kiosk Terminals", href: "/kiosks", icon: Tablet },
     { label: "White-Label Branding", href: "/settings/branding", icon: Palette },
   ];

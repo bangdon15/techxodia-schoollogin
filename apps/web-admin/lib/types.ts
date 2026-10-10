@@ -1,6 +1,7 @@
 export type UserRole = "super_admin" | "school_admin" | "staff" | "student";
 export type AttendanceDirection = "time_in" | "time_out";
-export type AttendanceStatus = "on_time" | "late" | "excused";
+export type AttendanceStatus = "on_time" | "late" | "excused" | "half_day" | "absent";
+export type VerificationMethod = "face_biometric" | "backup_pin" | "admin_override" | "qr_badge";
 
 export interface TenantThemeConfig {
   primary: string;
@@ -44,9 +45,11 @@ export interface UserProfile {
   student_or_emp_id: string;
   first_name: string;
   last_name: string;
-  grade_section?: string;
+  grade_section?: string; // Also serves as Department for Faculty/Staff
   avatar_url?: string;
+  email?: string;
   emergency_contact?: string;
+  backup_pin?: string; // 4-digit manual fail-safe PIN
   is_active: boolean;
   has_biometrics?: boolean;
   created_at: string;
@@ -56,11 +59,43 @@ export interface AttendanceLog {
   id: string;
   tenant_id: string;
   user_id: string;
-  kiosk_id: string;
+  kiosk_id?: string;
   timestamp: string;
   confidence_score: number;
   direction: AttendanceDirection;
   status: AttendanceStatus;
+  verification_method?: VerificationMethod;
+  override_reason?: string;
   user?: UserProfile;
   kiosk?: KioskDevice;
+}
+
+export interface DailyPayrollItem {
+  date: string;
+  student_or_emp_id: string;
+  full_name: string;
+  role: string;
+  department: string;
+  time_in: string | null;
+  time_out: string | null;
+  total_hours: number;
+  regular_hours: number;
+  overtime_hours: number;
+  late_minutes: number;
+  undertime_minutes: number;
+  status: string;
+  verification_method: VerificationMethod;
+}
+
+export interface EmployeePayrollSummary {
+  student_or_emp_id: string;
+  full_name: string;
+  role: string;
+  department: string;
+  days_worked: number;
+  total_hours: number;
+  total_regular_hours: number;
+  total_overtime_hours: number;
+  total_late_minutes: number;
+  net_payable_hours: number;
 }

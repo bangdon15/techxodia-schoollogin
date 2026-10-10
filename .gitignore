@@ -1,13 +1,24 @@
+# Environment & Secret Files (Never commit credentials to GitHub)
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+!.env.*.example
+
+# Vercel CLI & Deployment Metadata
+.vercel/
+
 # Node & Next.js
 node_modules/
 .next/
 out/
 build/
+dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-.env*.local
 
 # Android & Gradle
 .gradle/
@@ -21,6 +32,17 @@ local.properties
 *.hprof
 .cxx/
 captures/
+
+# Security Keystores, Private Keys & Cloud Credentials
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+*.pk8
+secrets.properties
+google-services.json
+GoogleService-Info.plist
 
 # APK & Binaries (Over 100MB; attach to GitHub Releases instead)
 *.apk

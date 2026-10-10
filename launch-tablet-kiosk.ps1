@@ -24,7 +24,7 @@ if (Test-Path $emulatorPath) {
         Write-Host "Installing $apkPath..." -ForegroundColor Yellow
         & $adbPath install -r $apkPath
         Write-Host "Launching Kiosk App..." -ForegroundColor Green
-        & $adbPath shell am start -n com.techxodia.schoolkiosk/.MainActivity
+        & $adbPath shell am start -n com.techxodia.schoolkiosk/.ui.KioskMainActivity
     }
 } else {
     Write-Host "Android Emulator binary not found at $emulatorPath." -ForegroundColor Red
