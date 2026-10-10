@@ -9,9 +9,24 @@ export interface TenantThemeConfig {
   surface: string;
   accent: string;
   bg: string;
+  // Legacy / general fallback
   bgStyle: "midnight" | "mesh" | "oled" | "light" | "custom_wallpaper";
   bgImageUrl?: string;
   fontFamily?: string;
+
+  // Granular Dashboard Background Customization
+  dashboardBgType?: "midnight" | "mesh" | "grid" | "wallpaper" | "oled" | "aurora" | "light";
+  dashboardBgImage?: string;
+  dashboardBgOverlay?: number; // 0.1 to 0.95 dark overlay opacity
+  dashboardBgBlur?: number; // 0 to 20 blur px
+
+  // Granular Login Screen Background & Layout Customization
+  loginLayout?: "center" | "split";
+  loginBgType?: "midnight" | "mesh" | "grid" | "wallpaper" | "oled" | "aurora" | "light";
+  loginBgImage?: string;
+  loginBgOverlay?: number; // 0.1 to 0.95
+  loginBgBlur?: number; // 0 to 20 blur px
+  motto?: string;
 }
 
 export interface Tenant {
