@@ -237,7 +237,39 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Dynamic background styling on body
     const body = document.body;
     body.style.backgroundColor = theme.bg || "#090D16";
-  }, [theme]);
+
+    // ── Dynamic Browser Tab Favicon & Tab Title ──
+    if (typeof document !== "undefined") {
+      document.title = `${schoolName} | Attendance & Identity Portal`;
+
+      const activeFavicon =
+        theme.useCustomFavicon && theme.faviconUrl ? theme.faviconUrl : logoUrl;
+
+      if (activeFavicon) {
+        // Update or create standard favicon link
+        let link: HTMLLinkElement | null =
+          document.querySelector("link[rel='icon']") ||
+          document.querySelector("link[rel*='icon']");
+        if (!link) {
+          link = document.createElement("link");
+          link.rel = "icon";
+          document.head.appendChild(link);
+        }
+        link.href = activeFavicon;
+
+        // Update Apple touch icon for mobile home screens / bookmarks
+        let appleLink: HTMLLinkElement | null = document.querySelector(
+          "link[rel='apple-touch-icon']"
+        );
+        if (!appleLink) {
+          appleLink = document.createElement("link");
+          appleLink.rel = "apple-touch-icon";
+          document.head.appendChild(appleLink);
+        }
+        appleLink.href = activeFavicon;
+      }
+    }
+  }, [theme, schoolName, logoUrl]);
 
   const updateTheme = (newTheme: Partial<TenantThemeConfig>) => {
     setTheme((prev) => {

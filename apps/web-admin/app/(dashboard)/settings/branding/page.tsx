@@ -23,6 +23,9 @@ import {
   Tablet,
   CheckCircle2,
   Tv,
+  Upload,
+  Globe,
+  Lock,
 } from "lucide-react";
 
 const CURATED_CAMPUS_WALLPAPERS = [
@@ -105,10 +108,34 @@ export default function WhiteLabelBrandingPage() {
     typeof theme.loginBgBlur === "number" ? theme.loginBgBlur : 0
   );
 
-  const [previewTab, setPreviewTab] = useState<"dashboard" | "login" | "kiosk">(
+  const [previewTab, setPreviewTab] = useState<"dashboard" | "login" | "kiosk" | "tab">(
     "dashboard"
   );
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Favicon State (The Red Circle in user's question)
+  const [useCustomFavicon, setUseCustomFavicon] = useState(
+    theme.useCustomFavicon || false
+  );
+  const [faviconUrl, setFaviconUrl] = useState(
+    theme.faviconUrl || formLogo
+  );
+
+  // Helper to handle local file upload to base64 Data URL
+  const handleFileUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (val: string) => void
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        setter(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Handle Preset School Selection
   const handleSelectPreset = (presetId: string) => {
@@ -132,6 +159,8 @@ export default function WhiteLabelBrandingPage() {
     setLoginBgImage(found.theme.loginBgImage || CURATED_CAMPUS_WALLPAPERS[1].url);
     setLoginBgOverlay(found.theme.loginBgOverlay ?? 0.75);
     setLoginBgBlur(found.theme.loginBgBlur ?? 0);
+    setFaviconUrl(found.logo);
+    setUseCustomFavicon(false);
 
     applySchoolPreset(presetId);
   };
@@ -156,6 +185,8 @@ export default function WhiteLabelBrandingPage() {
       loginBgOverlay,
       loginBgBlur,
       motto: formMotto,
+      faviconUrl,
+      useCustomFavicon,
     });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
@@ -587,7 +618,7 @@ export default function WhiteLabelBrandingPage() {
             <div className="glass-card p-6 rounded-3xl border border-slate-800 space-y-4">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <School className="w-4 h-4 text-brand-secondary" />
-                <span>3. School Identity & Color Tokens</span>
+                <span>3. School Identity, Crest & Browser Tab Favicon</span>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -602,18 +633,44 @@ export default function WhiteLabelBrandingPage() {
                     className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-brand-primary"
                     required
                   />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Updates browser tab title: &quot;{formName} | Portal&quot;
+                  </p>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    School Crest / Logo URL
+                    School Crest / Primary Logo
                   </label>
-                  <input
-                    type="url"
-                    value={formLogo}
-                    onChange={(e) => setFormLogo(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-brand-primary"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      value={formLogo}
+                      onChange={(e) => setFormLogo(e.target.value)}
+                      placeholder="https://... or upload file"
+                      className="flex-1 px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-brand-primary"
+                    />
+                    <label className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-slate-200 cursor-pointer transition shrink-0 flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5 text-brand-secondary" />
+                      <span>Upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleFileUpload(e, setFormLogo)}
+                      />
+                    </label>
+                  </div>
+                  {formLogo && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <img
+                        src={formLogo}
+                        alt="Logo Preview"
+                        className="w-6 h-6 rounded-full object-cover ring-1 ring-brand-primary"
+                      />
+                      <span className="text-[10px] text-slate-400">Current active school crest</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="sm:col-span-2">
@@ -628,6 +685,103 @@ export default function WhiteLabelBrandingPage() {
                     placeholder="e.g. Tradition of Excellence, Future of Innovation"
                   />
                 </div>
+              </div>
+
+              {/* ── BROWSER TAB FAVICON CUSTOMIZER (Address Red Circle in Browser Tab) ── */}
+              <div className="pt-4 border-t border-slate-800/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-white flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-brand-accent" />
+                    <span>Browser Tab Favicon (Red Circle in Browser Tab)</span>
+                  </label>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                    Live Tab Synchronization
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-400">
+                  Choose how the browser tab icon displays for this school client:
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setUseCustomFavicon(false)}
+                    className={`p-3 rounded-2xl border text-left transition flex items-start gap-3 ${
+                      !useCustomFavicon
+                        ? "bg-brand-primary/20 border-brand-secondary text-white ring-1 ring-brand-secondary/40 shadow-sm"
+                        : "bg-slate-900/60 hover:bg-slate-800 border-slate-800 text-slate-400"
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
+                      {formLogo ? (
+                        <img
+                          src={formLogo}
+                          alt="Logo"
+                          className="w-6 h-6 rounded-full object-cover"
+                        />
+                      ) : (
+                        <School className="w-4 h-4 text-brand-secondary" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold">Same as School Logo (Default)</div>
+                      <div className="text-[10px] text-slate-400">
+                        Automatically uses the school crest/logo as the browser favicon
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setUseCustomFavicon(true)}
+                    className={`p-3 rounded-2xl border text-left transition flex items-start gap-3 ${
+                      useCustomFavicon
+                        ? "bg-brand-primary/20 border-brand-secondary text-white ring-1 ring-brand-secondary/40 shadow-sm"
+                        : "bg-slate-900/60 hover:bg-slate-800 border-slate-800 text-slate-400"
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
+                      <Sparkles className="w-4 h-4 text-brand-primary" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold">Dedicated Custom Favicon</div>
+                      <div className="text-[10px] text-slate-400">
+                        Upload a dedicated 32x32 square crest or lettermark icon
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Custom Favicon Input */}
+                {useCustomFavicon && (
+                  <div className="p-3.5 bg-slate-900/90 rounded-2xl border border-slate-800 space-y-3 animate-in fade-in">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                        Dedicated Favicon Image URL or Upload (.png, .ico, .svg)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          value={faviconUrl}
+                          onChange={(e) => setFaviconUrl(e.target.value)}
+                          placeholder="https://... or upload file"
+                          className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-brand-primary"
+                        />
+                        <label className="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-slate-200 cursor-pointer transition shrink-0 flex items-center gap-1.5">
+                          <Upload className="w-3.5 h-3.5 text-brand-secondary" />
+                          <span>Upload File</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleFileUpload(e, setFaviconUrl)}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Color Palette */}
@@ -772,6 +926,17 @@ export default function WhiteLabelBrandingPage() {
                   }`}
                 >
                   Tablet Kiosk
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab("tab")}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
+                    previewTab === "tab"
+                      ? "bg-brand-primary text-white"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Browser Tab
                 </button>
               </div>
             </div>
@@ -1041,6 +1206,84 @@ export default function WhiteLabelBrandingPage() {
                     style={{ backgroundColor: primaryColor }}
                   >
                     Verifying Face...
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Mockup 4: Live Browser Tab & Favicon Preview ── */}
+            {previewTab === "tab" && (
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-4 shadow-2xl animate-in fade-in">
+                <div className="text-xs font-bold text-white flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-brand-accent" />
+                    <span>Browser Window & Tab Simulation</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>Live Synced</span>
+                  </span>
+                </div>
+
+                {/* Simulated Chrome/Edge Top Chrome */}
+                <div className="rounded-xl overflow-hidden border border-slate-700/80 bg-slate-900 shadow-xl">
+                  {/* Top Bar with Window Controls and Tab */}
+                  <div className="bg-slate-950 px-3 pt-2 pb-0 flex items-center gap-2 border-b border-slate-800">
+                    <div className="flex items-center gap-1.5 mr-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
+                    </div>
+
+                    {/* Active Browser Tab (The exact circled feature!) */}
+                    <div className="bg-slate-800/90 border-t border-x border-slate-700 rounded-t-xl px-3 py-1.5 flex items-center gap-2 max-w-[240px] shadow-sm relative">
+                      <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 ring-1 ring-brand-secondary flex items-center justify-center bg-slate-900">
+                        {(useCustomFavicon && faviconUrl ? faviconUrl : formLogo) ? (
+                          <img
+                            src={useCustomFavicon && faviconUrl ? faviconUrl : formLogo}
+                            alt="Favicon"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-brand-primary flex items-center justify-center text-[8px] font-bold text-white">
+                            SC
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-semibold text-slate-200 truncate">
+                        {formName} | Portal
+                      </span>
+                      <span className="text-[10px] text-slate-400 ml-auto hover:text-white cursor-pointer">
+                        ✕
+                      </span>
+                    </div>
+
+                    <div className="text-slate-500 text-xs px-1">+</div>
+                  </div>
+
+                  {/* URL Address Bar */}
+                  <div className="bg-slate-900 p-2 border-b border-slate-800 flex items-center gap-2">
+                    <div className="flex-1 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800 text-[11px] text-slate-300 font-mono flex items-center gap-2">
+                      <Lock className="w-3 h-3 text-emerald-400" />
+                      <span className="text-slate-400">https://</span>
+                      <span className="text-white font-semibold">
+                        {formName.toLowerCase().replace(/[^a-z0-9]/g, "") || "school"}-portal.edu
+                      </span>
+                      <span className="text-slate-400">/login</span>
+                    </div>
+                  </div>
+
+                  {/* Body Simulation */}
+                  <div className="p-5 bg-slate-950 text-center space-y-2">
+                    <div className="inline-block p-2 rounded-full bg-brand-primary/20 ring-1 ring-brand-secondary/40">
+                      <Globe className="w-5 h-5 text-brand-secondary" />
+                    </div>
+                    <div className="text-xs font-bold text-white">
+                      Live Dynamic Browser Favicon
+                    </div>
+                    <p className="text-[10px] text-slate-400 max-w-xs mx-auto">
+                      Look at your actual browser tab right now — it updates dynamically to match your school crest and name!
+                    </p>
                   </div>
                 </div>
               </div>

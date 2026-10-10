@@ -27,6 +27,10 @@ export interface TenantThemeConfig {
   loginBgOverlay?: number; // 0.1 to 0.95
   loginBgBlur?: number; // 0 to 20 blur px
   motto?: string;
+
+  // Browser Tab Favicon & Title Branding
+  faviconUrl?: string;
+  useCustomFavicon?: boolean;
 }
 
 export interface Tenant {
