@@ -1,0 +1,13 @@
+{
+  "schoolName": "Oakridge International Academy",
+  "logoUrl": "https://assets.techxodia.com/schools/oakridge-logo.png",
+  "primaryColor": "#1E3A8A",
+  "accentColor": "#F59E0B",
+  "kioskLocationId": "7f3b891e-4501-446f-87d2-7ec98234ab01",
+  "kioskName": "Main Gate Kiosk 01",
+  "supabaseUrl": "https://your-project-ref.supabase.co",
+  "supabaseDeviceKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.kiosk-anon-demo-key",
+  "cosineSimilarityThreshold": 0.35,
+  "livenessRequired": true,
+  "heartbeatIntervalSeconds": 60
+}

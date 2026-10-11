@@ -69,8 +69,12 @@ class KioskViewModel(application: Application) : AndroidViewModel(application) {
 
     fun completePairing(newConfig: KioskConfig) {
         _kioskConfig.value = newConfig
-        supabaseClient.initClient(newConfig)
+        supabaseClient.saveSelectedGate(newConfig)
         _uiState.value = KioskUiState.Standby()
+    }
+
+    fun openGateSelector() {
+        _uiState.value = KioskUiState.Pairing
     }
 
     private fun onFaceReadyForCloud(embedding: FloatArray) {

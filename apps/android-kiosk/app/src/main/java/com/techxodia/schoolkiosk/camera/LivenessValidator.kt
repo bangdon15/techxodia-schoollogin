@@ -3,6 +3,13 @@ package com.techxodia.schoolkiosk.camera
 import com.google.mlkit.vision.face.Face
 import kotlin.math.abs
 
+/**
+ * High-Speed Kiosk Face Alignment Validator
+ * 
+ * Optimized for low-resolution tablet front cameras and varied lighting.
+ * Detects face presence without requiring strict eye gaze or direct eye contact,
+ * allowing instant time-in recognition as soon as the face enters the oval guide.
+ */
 class LivenessValidator {
 
     data class Result(
@@ -16,21 +23,17 @@ class LivenessValidator {
         val yaw = face.headEulerAngleY
         val pitch = face.headEulerAngleX
 
-        // 1. Pose Check: Face must be centered and looking directly forward
-        if (abs(yaw) > 15.0f) {
-            return Result(false, "Please look directly at the kiosk screen", yaw, pitch)
+        // Broad yaw/pitch tolerances (+-45 deg) to comfortably capture students/staff
+        // even if looking slightly away or at an angle to the tablet.
+        if (abs(yaw) > 48.0f) {
+            return Result(false, "Please face towards the tablet", yaw, pitch)
         }
-        if (abs(pitch) > 15.0f) {
-            return Result(false, "Please adjust head level with the camera", yaw, pitch)
-        }
-
-        // 2. Eyes Open Check (anti-sleeping/closed eye)
-        val leftEye = face.leftEyeOpenProbability ?: 1.0f
-        val rightEye = face.rightEyeOpenProbability ?: 1.0f
-        if (leftEye < 0.4f || rightEye < 0.4f) {
-            return Result(false, "Please keep eyes open", yaw, pitch)
+        if (abs(pitch) > 48.0f) {
+            return Result(false, "Please adjust angle to screen", yaw, pitch)
         }
 
+        // Removed strict eye-open probability checks so low-res camera noise,
+        // spectacles, or indirect gaze do not block instant recognition.
         return Result(true, "Face Aligned", yaw, pitch)
     }
 }

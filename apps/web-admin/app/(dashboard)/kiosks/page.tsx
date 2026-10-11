@@ -128,20 +128,31 @@ export default function KioskDevicesPage() {
         {kiosks.map((kiosk) => (
           <div key={kiosk.id} className="glass-card p-5 rounded-2xl flex flex-col justify-between">
             <div>
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-brand-primary/20 text-brand-secondary flex items-center justify-center border border-brand-primary/40">
                     <Tablet className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-sm text-white">{kiosk.device_name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-sm text-white">{kiosk.device_name}</h3>
+                      <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 font-mono text-[10px] font-bold border border-blue-500/30">
+                        {kiosk.device_name.toLowerCase().includes("north")
+                          ? "CODE 101"
+                          : kiosk.device_name.toLowerCase().includes("gym")
+                          ? "CODE 102"
+                          : kiosk.device_name.toLowerCase().includes("cafe")
+                          ? "CODE 103"
+                          : "CODE 104"}
+                      </span>
+                    </div>
                     <p className="text-xs text-slate-400">{kiosk.location_tag}</p>
                   </div>
                 </div>
 
                 <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Lock Task Active</span>
+                  <span>Auto-Connect</span>
                 </span>
               </div>
 
@@ -172,27 +183,28 @@ export default function KioskDevicesPage() {
                     <Wifi className="w-3 h-3 text-brand-secondary" />
                     <span>Latency</span>
                   </div>
-                  <div className="text-xs font-bold text-white font-mono">38 ms</div>
+                  <div className="text-xs font-bold text-white font-mono">18 ms</div>
                 </div>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
-              <span className="text-slate-400 flex items-center gap-1 text-[11px]">
-                <Clock className="w-3 h-3 text-slate-500" />
-                <span>
-                  {kiosk.last_heartbeat_at
-                    ? `${Math.round((Date.now() - new Date(kiosk.last_heartbeat_at).getTime()) / 1000)}s ago`
-                    : "Active"}
-                </span>
-              </span>
+            <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs gap-2">
+              <a
+                href="https://github.com/bangdon15/techxodia-schoollogin/releases/download/v1.0.0/app-debug.apk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition font-medium text-[11px]"
+              >
+                <Download className="w-3 h-3 text-brand-secondary" />
+                <span>APK</span>
+              </a>
 
               <button
                 onClick={() => setSelectedKioskForQr(kiosk)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition font-medium text-[11px]"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary/20 hover:bg-brand-primary/30 border border-brand-primary/40 text-brand-secondary transition font-medium text-[11px]"
               >
-                <QrCode className="w-3.5 h-3.5 text-brand-secondary" />
-                <span>View QR Token</span>
+                <QrCode className="w-3.5 h-3.5" />
+                <span>Setup / Quick Code</span>
               </button>
             </div>
           </div>

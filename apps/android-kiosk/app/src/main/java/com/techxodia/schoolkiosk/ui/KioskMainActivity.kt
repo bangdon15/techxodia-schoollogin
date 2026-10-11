@@ -49,6 +49,7 @@ class KioskMainActivity : ComponentActivity() {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                 if (uiState is KioskUiState.Pairing) {
                     QrPairingScreen(
+                        currentConfig = config,
                         onPairSuccess = { newConfig ->
                             viewModel.completePairing(newConfig)
                         }
@@ -73,7 +74,8 @@ class KioskMainActivity : ComponentActivity() {
                         config = config,
                         statusMessage = statusMsg,
                         isVerifying = uiState is KioskUiState.Verifying,
-                        isUnrecognized = uiState is KioskUiState.Unrecognized
+                        isUnrecognized = uiState is KioskUiState.Unrecognized,
+                        onSwitchGate = { viewModel.openGateSelector() }
                     )
 
                     // Branded Success Modal (2.5 seconds)

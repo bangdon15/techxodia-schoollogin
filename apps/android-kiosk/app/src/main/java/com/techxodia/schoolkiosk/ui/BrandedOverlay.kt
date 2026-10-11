@@ -7,7 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -55,7 +56,8 @@ fun BrandedOverlay(
     config: KioskConfig,
     statusMessage: String,
     isVerifying: Boolean,
-    isUnrecognized: Boolean
+    isUnrecognized: Boolean,
+    onSwitchGate: () -> Unit = {}
 ) {
     var currentTime by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
@@ -113,9 +115,10 @@ fun BrandedOverlay(
             )
         }
 
-        // Header
+        // Top Header HUD Bar
         Column(
             modifier = Modifier
+                .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .padding(24.dp)
         ) {
@@ -141,7 +144,31 @@ fun BrandedOverlay(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(text = config.schoolName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text(text = "${config.deviceName} • ${config.locationTag}", color = Color.Gray, fontSize = 12.sp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clickable { onSwitchGate() }
+                                    .padding(vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "${config.deviceName} • ${config.locationTag}",
+                                    color = Color(0xFF38BDF8),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFF1E293B)
+                                ) {
+                                    Text(
+                                        text = "Switch Gate",
+                                        color = Color.LightGray,
+                                        fontSize = 9.sp,
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 

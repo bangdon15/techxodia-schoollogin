@@ -1,6 +1,7 @@
 package com.techxodia.schoolkiosk.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,9 +12,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.SportsBasketball
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Tablet
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -37,9 +44,10 @@ import com.techxodia.schoolkiosk.data.KioskConfig
 
 @Composable
 fun QrPairingScreen(
+    currentConfig: KioskConfig,
     onPairSuccess: (KioskConfig) -> Unit
 ) {
-    var rawJson by remember { mutableStateOf("") }
+    var quickCodeInput by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
 
     Box(
@@ -52,86 +60,164 @@ fun QrPairingScreen(
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
             modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .padding(24.dp)
+                .fillMaxWidth(0.92f)
+                .padding(16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(32.dp),
+                modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
                     imageVector = Icons.Default.Tablet,
-                    contentDescription = "Setup",
+                    contentDescription = "Gate Selection",
                     tint = Color(0xFFF59E0B),
-                    modifier = Modifier.size(54.dp)
+                    modifier = Modifier.size(48.dp)
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Select Hardware Gate Terminal",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+
+                Text(
+                    text = "Tap your gate below to connect automatically (no QR code needed):",
+                    color = Color.LightGray,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                )
+
+                // 1-Tap Gate Cards
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    KioskConfig.PRESET_GATES.forEach { gate ->
+                        val isCurrent = gate.gateCode == currentConfig.gateCode
+                        val icon = when (gate.gateCode) {
+                            "101" -> Icons.Default.MeetingRoom
+                            "102" -> Icons.Default.SportsBasketball
+                            "103" -> Icons.Default.Restaurant
+                            else -> Icons.Default.Business
+                        }
+
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isCurrent) Color(0xFF1E3A8A).copy(alpha = 0.5f) else Color(0xFF1E293B)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onPairSuccess(gate)
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = if (isCurrent) Color(0xFF38BDF8) else Color(0xFFF59E0B),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Column {
+                                        Text(
+                                            text = gate.deviceName,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 14.sp
+                                        )
+                                        Text(
+                                            text = "${gate.locationTag} • Code ${gate.gateCode}",
+                                            color = Color.Gray,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+
+                                Button(
+                                    onClick = { onPairSuccess(gate) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isCurrent) Color(0xFF10B981) else Color(0xFF2563EB)
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = if (isCurrent) "Active Gate" else "Connect",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "Kiosk Device Initial Pairing",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
-                )
-
-                Text(
-                    text = "Scan the QR code from the Web Admin Portal or paste the pairing token payload below.",
-                    color = Color.Gray,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 6.dp, bottom = 20.dp)
-                )
-
-                OutlinedTextField(
-                    value = rawJson,
-                    onValueChange = { rawJson = it },
-                    label = { Text("Paste Token Payload JSON", color = Color.Gray) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                if (errorMessage.isNotEmpty()) {
-                    Text(text = errorMessage, color = Color(0xFFEF4444), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(
-                        onClick = {
-                            // Quick Pair with Demo Config
-                            onPairSuccess(
-                                KioskConfig(
-                                    deviceName = "North Gate Tablet 01",
-                                    locationTag = "North Campus Turnstiles",
-                                    deviceToken = "kiosk_secret_token_oakridge_north_gate",
-                                    supabaseUrl = "https://your-supabase-project.supabase.co"
-                                )
-                            )
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Use Default Gate 01 Demo", color = Color.White)
-                    }
+                // Quick Code Input Fallback
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = quickCodeInput,
+                        onValueChange = { quickCodeInput = it },
+                        placeholder = { Text("Enter Gate Code (e.g. 101)", color = Color.Gray, fontSize = 12.sp) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        singleLine = true
+                    )
 
                     Button(
                         onClick = {
-                            try {
-                                val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-                                val parsed = json.decodeFromString<KioskConfig>(rawJson)
-                                onPairSuccess(parsed)
-                            } catch (e: Exception) {
-                                errorMessage = "Invalid JSON payload: ${e.message}"
+                            val targetGate = KioskConfig.PRESET_GATES.find { it.gateCode == quickCodeInput.trim() }
+                            if (targetGate != null) {
+                                onPairSuccess(targetGate)
+                            } else {
+                                errorMessage = "Unknown Gate Code. Valid codes: 101, 102, 103, 104"
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E3A8A)),
-                        shape = RoundedCornerShape(12.dp)
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155)),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("Complete Pairing", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Pair Code", fontSize = 12.sp)
                     }
+                }
+
+                if (errorMessage.isNotEmpty()) {
+                    Text(
+                        text = errorMessage,
+                        color = Color(0xFFEF4444),
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        onPairSuccess(KioskConfig.PRESET_GATES.first())
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E3A8A)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Auto-Connect North Gate (Default)", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
