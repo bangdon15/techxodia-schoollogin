@@ -11,6 +11,8 @@ import {
   Video,
   CheckCircle2,
   Clock,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { KioskQrModal } from "@/components/KioskQrModal";
 import { KioskDevice } from "@/lib/types";
@@ -100,13 +102,25 @@ export default function KioskDevicesPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-primary/80 text-xs font-semibold text-white transition shadow-lg shadow-brand-primary/30"
-        >
-          <PlusCircle className="w-3.5 h-3.5" />
-          <span>Provision New Kiosk</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <a
+            href="https://github.com/bangdon15/techxodia-schoollogin/releases/download/v1.0.0/app-debug.apk"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-xs font-semibold text-slate-200 transition shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5 text-brand-secondary" />
+            <span>Download Tablet APK</span>
+          </a>
+
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-primary/80 text-xs font-semibold text-white transition shadow-lg shadow-brand-primary/30"
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span>Provision New Kiosk</span>
+          </button>
+        </div>
       </div>
 
       {/* Grid of Kiosks */}
