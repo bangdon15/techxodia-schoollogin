@@ -101,8 +101,28 @@ export default function FacultyAndStudentRegistrationPage() {
     try {
       const res = await extractFaceVectorFromBase64(photoBase64, enrolledUserId);
       if (res.success && res.face_vector) {
-        setStatusMessage("Storing biometrics into secure pgvector vault...");
-        // Emulate slight delay for premium feedback
+        setStatusMessage("Storing biometrics into secure biometric vault...");
+        
+        const names = formData.fullName.trim().split(" ");
+        const firstName = names.slice(0, -1).join(" ") || names[0];
+        const lastName = names.length > 1 ? names[names.length - 1] : "";
+
+        await fetch("/api/biometrics/enroll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: enrolledUserId,
+            student_or_emp_id: formData.idNumber,
+            first_name: firstName,
+            last_name: lastName,
+            role: formData.role,
+            grade_section: formData.department,
+            avatar_url: photoBase64,
+            backup_pin: formData.backupPin || "1234",
+            face_vector: res.face_vector,
+          }),
+        }).catch(() => {});
+
         setTimeout(() => {
           setIsProcessing(false);
           setStep(3);

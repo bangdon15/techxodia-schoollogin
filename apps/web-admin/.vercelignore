@@ -1,2 +1,5 @@
-public/app-debug.apk
 *.apk
+public/*.apk
+app-debug.apk
+node_modules/
+.next/

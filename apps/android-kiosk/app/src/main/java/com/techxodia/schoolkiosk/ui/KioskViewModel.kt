@@ -25,6 +25,11 @@ sealed class KioskUiState {
     object Verifying : KioskUiState()
     data class Success(val result: AttendanceVerificationResult) : KioskUiState()
     data class Unrecognized(val message: String = "Face not recognized - Please retry or see front desk") : KioskUiState()
+    data class FailSafe(
+        val promptMessage: String = "Face not recognized. Enter your 4-digit PIN:",
+        val errorMessage: String? = null,
+        val isVerifying: Boolean = false
+    ) : KioskUiState()
     data class Offline(val message: String) : KioskUiState()
 }
 
@@ -55,7 +60,7 @@ class KioskViewModel(application: Application) : AndroidViewModel(application) {
         analyzer = FaceAnalyzer(
             embeddingEngine = embeddingEngine,
             livenessValidator = livenessValidator,
-            onFaceVectorExtracted = { embedding, msg ->
+            onFaceVectorExtracted = { embedding, _ ->
                 onFaceReadyForCloud(embedding)
             },
             onStatusUpdate = { msg ->
@@ -77,9 +82,78 @@ class KioskViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = KioskUiState.Pairing
     }
 
+    fun openFailSafe(message: String = "Face not recognized. Enter your 4-digit backup PIN:") {
+        verificationJob?.cancel()
+        analyzer.isSuspended = true
+        _uiState.value = KioskUiState.FailSafe(promptMessage = message)
+    }
+
+    fun dismissFailSafe() {
+        resetToStandby()
+    }
+
+    /**
+     * Triggered when the user taps the "Not you?" button on the Success banner.
+     * Cancels the incorrect attendance entry and presents the 4-Digit PIN fail-safe.
+     */
+    fun onNotYouClicked(attendanceId: String?) {
+        verificationJob?.cancel()
+        analyzer.isSuspended = true
+
+        viewModelScope.launch {
+            if (!attendanceId.isNullOrBlank()) {
+                supabaseClient.cancelAttendance(attendanceId, "User clicked 'Not you?' button")
+            }
+            playChime(false)
+            _uiState.value = KioskUiState.FailSafe(
+                promptMessage = "Attendance cancelled. Enter your 4-digit backup PIN to verify:"
+            )
+        }
+    }
+
+    /**
+     * Verifies the 4-digit PIN entered via FailSafeDialog.
+     */
+    fun verifyBackupPin(pin: String) {
+        viewModelScope.launch {
+            _uiState.value = KioskUiState.FailSafe(
+                promptMessage = "Verifying PIN...",
+                isVerifying = true
+            )
+
+            val res = supabaseClient.verifyPin(pin)
+            res.onSuccess { match ->
+                if (match.matched) {
+                    playChime(true)
+                    _uiState.value = KioskUiState.Success(match)
+                    delay(2800)
+                    resetToStandby()
+                } else {
+                    playChime(false)
+                    _uiState.value = KioskUiState.FailSafe(
+                        promptMessage = "Enter your 4-digit backup PIN:",
+                        errorMessage = match.message ?: "Incorrect PIN. Please re-enter your 4-digit PIN.",
+                        isVerifying = false
+                    )
+                }
+            }.onFailure {
+                playChime(false)
+                _uiState.value = KioskUiState.FailSafe(
+                    promptMessage = "Enter your 4-digit backup PIN:",
+                    errorMessage = "Verification failed. Please retry or see front desk.",
+                    isVerifying = false
+                )
+            }
+        }
+    }
+
     private fun onFaceReadyForCloud(embedding: FloatArray) {
         val state = _uiState.value
-        if (state is KioskUiState.Verifying || state is KioskUiState.Success || verificationJob?.isActive == true) {
+        if (state is KioskUiState.Verifying ||
+            state is KioskUiState.Success ||
+            state is KioskUiState.FailSafe ||
+            verificationJob?.isActive == true
+        ) {
             return
         }
 
@@ -87,20 +161,22 @@ class KioskViewModel(application: Application) : AndroidViewModel(application) {
             analyzer.isSuspended = true
             _uiState.value = KioskUiState.Verifying
 
-            val res = supabaseClient.verifyAndLogAttendance(embedding, threshold = 0.38)
+            val res = supabaseClient.verifyAndLogAttendance(embedding, threshold = 0.68)
 
             res.onSuccess { match ->
                 if (match.matched) {
                     playChime(true)
                     _uiState.value = KioskUiState.Success(match)
-                    // Show success banner for 2.5 seconds
-                    delay(2500)
+                    // Show success banner for 3.0 seconds so user has time to see it and tap "Not you?" if needed
+                    delay(3000)
                     resetToStandby()
                 } else {
                     playChime(false)
-                    _uiState.value = KioskUiState.Unrecognized(match.message ?: "Face not recognized - Please retry or see front desk")
-                    // Show unrecognized warning for 1.5 seconds
-                    delay(1500)
+                    _uiState.value = KioskUiState.Unrecognized(
+                        match.message ?: "Face not recognized - Please retry or see front desk"
+                    )
+                    // Show unrecognized warning for 2.0 seconds
+                    delay(2000)
                     resetToStandby()
                 }
             }.onFailure { err ->
@@ -112,10 +188,9 @@ class KioskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun resetToStandby() {
-        // Enforce 3-second camera cooldown to avoid accidental double-triggers
+    fun resetToStandby() {
         viewModelScope.launch {
-            delay(1000) // Cooldown period
+            delay(500)
             _uiState.value = KioskUiState.Standby()
             analyzer.isSuspended = false
         }

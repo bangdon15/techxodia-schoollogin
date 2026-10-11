@@ -75,14 +75,30 @@ class KioskMainActivity : ComponentActivity() {
                         statusMessage = statusMsg,
                         isVerifying = uiState is KioskUiState.Verifying,
                         isUnrecognized = uiState is KioskUiState.Unrecognized,
-                        onSwitchGate = { viewModel.openGateSelector() }
+                        onSwitchGate = { viewModel.openGateSelector() },
+                        onOpenFailSafe = { viewModel.openFailSafe() }
                     )
 
-                    // Branded Success Modal (2.5 seconds)
+                    // Branded Success Modal with "Not you?" Fail-Safe
                     if (uiState is KioskUiState.Success) {
+                        val result = (uiState as KioskUiState.Success).result
                         SuccessBanner(
-                            result = (uiState as KioskUiState.Success).result,
-                            config = config
+                            result = result,
+                            config = config,
+                            onNotYou = { viewModel.onNotYouClicked(result.attendanceId) }
+                        )
+                    }
+
+                    // Fail-Safe PIN Keypad Overlay
+                    if (uiState is KioskUiState.FailSafe) {
+                        val failSafeState = uiState as KioskUiState.FailSafe
+                        FailSafeDialog(
+                            promptMessage = failSafeState.promptMessage,
+                            isVerifying = failSafeState.isVerifying,
+                            errorMessage = failSafeState.errorMessage,
+                            onSubmitPin = { pin -> viewModel.verifyBackupPin(pin) },
+                            onRetryFaceScan = { viewModel.resetToStandby() },
+                            onDismiss = { viewModel.dismissFailSafe() }
                         )
                     }
                 }

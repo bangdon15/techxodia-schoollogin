@@ -23,8 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -57,7 +57,8 @@ fun BrandedOverlay(
     statusMessage: String,
     isVerifying: Boolean,
     isUnrecognized: Boolean,
-    onSwitchGate: () -> Unit = {}
+    onSwitchGate: () -> Unit = {},
+    onOpenFailSafe: () -> Unit = {}
 ) {
     var currentTime by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
@@ -184,28 +185,62 @@ fun BrandedOverlay(
             }
         }
 
-        // Bottom Status Pill
+        // Bottom Status Pill & Fail-Safe Shortcut
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 40.dp),
+                .padding(bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Surface(
                 shape = RoundedCornerShape(32.dp),
                 color = if (isUnrecognized) Color(0xFFEF4444) else Color(0xFF1E293B).copy(alpha = 0.95f),
-                shadowElevation = 8.dp
+                shadowElevation = 8.dp,
+                modifier = Modifier.clickable {
+                    if (isUnrecognized) onOpenFailSafe()
+                }
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Face, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(
+                        imageVector = if (isUnrecognized) Icons.Default.Key else Icons.Default.Face,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(text = statusMessage, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(
+                        text = if (isUnrecognized) "$statusMessage • Tap for PIN" else statusMessage,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Discrete Fail-Safe Button (always accessible)
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.Black.copy(alpha = 0.6f),
+                modifier = Modifier
+                    .clickable { onOpenFailSafe() }
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Default.Key, contentDescription = "PIN", tint = Color(0xFFF59E0B), modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "Face not scanning? Enter 4-Digit PIN", color = Color(0xFFFCD34D), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
             Text(text = "Zero-Persistence Biometric Processing • Secure Cloud Verification", color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
         }
     }

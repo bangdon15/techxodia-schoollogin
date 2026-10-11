@@ -1,0 +1,8 @@
+apps/android-kiosk/
+*.apk
+public/*.apk
+app-debug.apk
+.gradle/
+build/
+node_modules/
+.git/

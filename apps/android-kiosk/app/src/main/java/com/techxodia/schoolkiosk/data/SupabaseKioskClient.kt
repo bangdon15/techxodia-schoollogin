@@ -9,14 +9,10 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
-import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * Robust High-Availability Kiosk API Client
@@ -25,9 +21,9 @@ import java.util.Locale
  * https://web-admin-tau-three.vercel.app/api/attendance/verify
  * 
  * Features:
- * - Direct REST API integration with 4-second timeout
- * - Built-in offline resilience: If network drops or Wi-Fi is unstable,
- *   it seamlessly logs attendance without getting stuck or displaying error screens.
+ * - True biometric verification: accurately identifies enrolled individuals or returns unrecognized
+ * - "Not you?" cancellation fail-safe support
+ * - Backup 4-digit PIN verification support
  */
 class SupabaseKioskClient(private val context: Context) {
 
@@ -76,18 +72,16 @@ class SupabaseKioskClient(private val context: Context) {
     }
 
     /**
-     * Executes attendance verification via Cloud API with instant offline fallback.
+     * Executes attendance verification via Cloud API.
+     * Accurately distinguishes between enrolled users and unknown faces.
      */
     suspend fun verifyAndLogAttendance(
         embedding: FloatArray,
-        threshold: Double = 0.38
+        threshold: Double = 0.68
     ): Result<AttendanceVerificationResult> = withContext(Dispatchers.IO) {
         try {
-            val endpoint = if (activeConfig.supabaseUrl.endsWith("/")) {
-                "${activeConfig.supabaseUrl}api/attendance/verify"
-            } else {
-                "${activeConfig.supabaseUrl}/api/attendance/verify"
-            }
+            val base = if (activeConfig.supabaseUrl.endsWith("/")) activeConfig.supabaseUrl else "${activeConfig.supabaseUrl}/"
+            val endpoint = "${base}api/attendance/verify"
 
             val payload = buildJsonObject {
                 put("device_token", activeConfig.deviceToken)
@@ -103,8 +97,8 @@ class SupabaseKioskClient(private val context: Context) {
             val url = URL(endpoint)
             val connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
-                connectTimeout = 4500
-                readTimeout = 4500
+                connectTimeout = 5000
+                readTimeout = 5000
                 doOutput = true
                 doInput = true
                 setRequestProperty("Content-Type", "application/json")
@@ -124,33 +118,121 @@ class SupabaseKioskClient(private val context: Context) {
                 val parsed = json.decodeFromString<AttendanceVerificationResult>(responseText)
                 return@withContext Result.success(parsed)
             } else {
-                Log.w("KioskApiClient", "Server returned HTTP $responseCode, activating offline fallback.")
+                val errText = try { connection.errorStream?.bufferedReader()?.use { it.readText() } } catch (e: Exception) { null }
+                Log.w("KioskApiClient", "Server returned HTTP $responseCode: $errText")
             }
         } catch (e: Exception) {
-            Log.e("KioskApiClient", "Network verification request failed: ${e.message}, activating offline fallback.")
+            Log.e("KioskApiClient", "Network verification request failed: ${e.message}")
         }
 
-        // Offline / Low-Latency Resilient Mode:
-        // Match verified user locally so the kiosk never drops or fails during student/faculty transit
-        val localIsoTimestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date())
-        val fallbackResult = AttendanceVerificationResult(
-            matched = true,
-            cooldownActive = false,
-            attendanceId = "att-instant-${System.currentTimeMillis()}",
-            userId = "user-brandon-torres-101",
-            studentOrEmpId = "TEST1234",
-            firstName = "Brandon Jake A.",
-            lastName = "Torres",
-            gradeSection = "Faculty • HR",
-            direction = "time_in",
-            status = "on_time",
-            locationTag = activeConfig.locationTag,
-            confidenceScore = 0.96,
-            timestamp = localIsoTimestamp,
-            message = "Biometrics verified. Welcome, Brandon Jake A. Torres!"
+        // Safe failure mode: NEVER return another person's identity on error!
+        val unrecognizedFallback = AttendanceVerificationResult(
+            matched = false,
+            message = "Face not recognized - Please retry or use backup PIN"
         )
+        Result.success(unrecognizedFallback)
+    }
 
-        Result.success(fallbackResult)
+    /**
+     * Cancels an incorrectly identified attendance entry when user taps "Not you?".
+     */
+    suspend fun cancelAttendance(
+        attendanceId: String,
+        reason: String = "User tapped 'Not you' fail-safe button"
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (attendanceId.isBlank()) return@withContext false
+        try {
+            val base = if (activeConfig.supabaseUrl.endsWith("/")) activeConfig.supabaseUrl else "${activeConfig.supabaseUrl}/"
+            val endpoint = "${base}api/attendance/cancel"
+
+            val payload = buildJsonObject {
+                put("attendance_id", attendanceId)
+                put("reason", reason)
+                put("kiosk_id", activeConfig.kioskId)
+            }.toString()
+
+            val url = URL(endpoint)
+            val connection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 4000
+                readTimeout = 4000
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+            }
+
+            connection.outputStream.use { os ->
+                OutputStreamWriter(os, "UTF-8").use { writer ->
+                    writer.write(payload)
+                    writer.flush()
+                }
+            }
+
+            return@withContext connection.responseCode in 200..299
+        } catch (e: Exception) {
+            Log.e("KioskApiClient", "Cancel attendance request failed: ${e.message}")
+            return@withContext false
+        }
+    }
+
+    /**
+     * Verifies student or staff member via 4-Digit Backup PIN.
+     */
+    suspend fun verifyPin(
+        pin: String,
+        studentOrEmpId: String? = null
+    ): Result<AttendanceVerificationResult> = withContext(Dispatchers.IO) {
+        try {
+            val base = if (activeConfig.supabaseUrl.endsWith("/")) activeConfig.supabaseUrl else "${activeConfig.supabaseUrl}/"
+            val endpoint = "${base}api/attendance/manual-entry"
+
+            val payload = buildJsonObject {
+                put("pin", pin)
+                if (!studentOrEmpId.isNullOrBlank()) {
+                    put("student_or_emp_id", studentOrEmpId)
+                }
+                put("location_tag", activeConfig.locationTag)
+                put("kiosk_id", activeConfig.kioskId)
+                put("direction", "time_in")
+            }.toString()
+
+            val url = URL(endpoint)
+            val connection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 5000
+                readTimeout = 5000
+                doOutput = true
+                doInput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+            }
+
+            connection.outputStream.use { os ->
+                OutputStreamWriter(os, "UTF-8").use { writer ->
+                    writer.write(payload)
+                    writer.flush()
+                }
+            }
+
+            val responseCode = connection.responseCode
+            if (responseCode in 200..299) {
+                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                val parsed = json.decodeFromString<AttendanceVerificationResult>(responseText)
+                return@withContext Result.success(parsed)
+            } else {
+                val errText = try { connection.errorStream?.bufferedReader()?.use { it.readText() } } catch (e: Exception) { null }
+                Log.w("KioskApiClient", "PIN verification returned HTTP $responseCode: $errText")
+            }
+        } catch (e: Exception) {
+            Log.e("KioskApiClient", "PIN verification network error: ${e.message}")
+        }
+
+        Result.success(
+            AttendanceVerificationResult(
+                matched = false,
+                message = "Invalid 4-digit PIN. Please re-enter or see front desk."
+            )
+        )
     }
 
     fun getActiveConfig(): KioskConfig = activeConfig

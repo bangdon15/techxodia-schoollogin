@@ -138,3 +138,14 @@ export function addAttendanceRecord(record: Partial<LiveAttendanceRecord>): Live
 
   return newRecord;
 }
+
+export function cancelAttendanceRecord(id: string, reason = "Not you fail-safe override"): boolean {
+  const store = getAttendanceStore();
+  const index = store.findIndex((r) => r.id === id);
+  if (index !== -1) {
+    // Remove the incorrect log so it does not count against the wrong user
+    store.splice(index, 1);
+    return true;
+  }
+  return false;
+}

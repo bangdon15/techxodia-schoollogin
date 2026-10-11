@@ -3,8 +3,10 @@ package com.techxodia.schoolkiosk.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
@@ -39,7 +42,8 @@ import com.techxodia.schoolkiosk.data.KioskConfig
 @Composable
 fun SuccessBanner(
     result: AttendanceVerificationResult,
-    config: KioskConfig
+    config: KioskConfig,
+    onNotYou: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -127,7 +131,39 @@ fun SuccessBanner(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // Prominent Fail-Safe "Not you?" Button
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFFEF4444).copy(alpha = 0.18f),
+                        border = BorderStroke(1.5.dp, Color(0xFFEF4444)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNotYou() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Fail safe",
+                                tint = Color(0xFFF87171),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Not you? Tap here to cancel & enter PIN",
+                                color = Color(0xFFFCA5A5),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     Surface(
                         shape = RoundedCornerShape(12.dp),

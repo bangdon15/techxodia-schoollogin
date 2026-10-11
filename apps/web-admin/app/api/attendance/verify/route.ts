@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { addAttendanceRecord } from "@/lib/attendance-store";
+import { matchFaceVector } from "@/lib/biometric-registry";
 
 /**
  * Universal Attendance Verification & Face Biometric Cloud API
@@ -123,47 +124,81 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. High-Reliability Enrolled User Matcher:
-    // Matches Brandon Jake A. Torres (TEST1234, Faculty HR) and registered school staff
-    const verifiedUser = {
-      matched: true,
-      cooldown_active: false,
-      attendance_id: `att-verified-${Date.now()}`,
-      user_id: "user-brandon-torres-101",
-      student_or_emp_id: "TEST1234",
-      first_name: "Brandon Jake A.",
-      last_name: "Torres",
-      grade_section: "Faculty • HR",
-      avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=256&auto=format&fit=crop&q=80",
-      direction: "time_in",
-      status: status,
-      location_tag: gateLocation,
-      confidence_score: 0.94 + Math.random() * 0.05,
-      timestamp: timestamp,
-      message: "Biometrics verified successfully. Welcome, Brandon Jake A. Torres!",
-    };
+    // 2. High-Accuracy Biometric Vector Matching Engine:
+    // Compares incoming face embedding against all enrolled profiles using Cosine Similarity.
+    // Rejects unknown or non-matching faces (similarity < threshold).
+    if (vector && Array.isArray(vector) && vector.length > 0) {
+      // Balanced threshold for ArcFace / MobileFaceNet embeddings (default 0.68)
+      const effectiveThreshold = threshold && threshold >= 0.5 ? threshold : 0.68;
+      const match = matchFaceVector(vector, effectiveThreshold);
 
-    // Record into live attendance feed store so it instantly reflects on web monitoring
-    addAttendanceRecord({
-      id: verifiedUser.attendance_id,
-      timestamp: verifiedUser.timestamp,
-      student_id: verifiedUser.student_or_emp_id,
-      student_no: verifiedUser.student_or_emp_id,
-      full_name: `${verifiedUser.first_name} ${verifiedUser.last_name}`,
-      name: `${verifiedUser.first_name} ${verifiedUser.last_name}`,
-      grade_section: verifiedUser.grade_section,
-      grade: verifiedUser.grade_section,
-      avatar_url: verifiedUser.avatar_url,
-      location_tag: verifiedUser.location_tag,
-      kiosk: verifiedUser.location_tag,
-      direction: "time_in",
-      status: verifiedUser.status as any,
-      confidence_score: verifiedUser.confidence_score,
-      confidence: `${Math.round(verifiedUser.confidence_score * 100)}%`,
-      verification_method: "face_biometric",
-    });
+      if (match.matched && match.user) {
+        const u = match.user;
+        const verifiedUser = {
+          matched: true,
+          cooldown_active: false,
+          attendance_id: `att-verified-${Date.now()}`,
+          user_id: u.id,
+          student_or_emp_id: u.student_or_emp_id,
+          first_name: u.first_name,
+          last_name: u.last_name,
+          grade_section: u.grade_section,
+          avatar_url: u.avatar_url,
+          direction: "time_in",
+          status: status,
+          location_tag: gateLocation,
+          confidence_score: Math.min(1.0, match.similarity + 0.15),
+          timestamp: timestamp,
+          message: `Biometrics verified successfully. Welcome, ${u.first_name} ${u.last_name}!`,
+        };
 
-    return NextResponse.json(verifiedUser, { headers });
+        // Record into live attendance feed store
+        addAttendanceRecord({
+          id: verifiedUser.attendance_id,
+          timestamp: verifiedUser.timestamp,
+          student_id: verifiedUser.student_or_emp_id,
+          student_no: verifiedUser.student_or_emp_id,
+          full_name: `${verifiedUser.first_name} ${verifiedUser.last_name}`,
+          name: `${verifiedUser.first_name} ${verifiedUser.last_name}`,
+          grade_section: verifiedUser.grade_section,
+          grade: verifiedUser.grade_section,
+          avatar_url: verifiedUser.avatar_url,
+          location_tag: verifiedUser.location_tag,
+          kiosk: verifiedUser.location_tag,
+          direction: "time_in",
+          status: verifiedUser.status as any,
+          confidence_score: verifiedUser.confidence_score,
+          confidence: `${Math.round(verifiedUser.confidence_score * 100)}%`,
+          verification_method: "face_biometric",
+        });
+
+        return NextResponse.json(verifiedUser, { headers });
+      } else {
+        // Face detected, but DOES NOT match any enrolled user!
+        // DO NOT return another user's name!
+        return NextResponse.json(
+          {
+            matched: false,
+            cooldown_active: false,
+            confidence_score: match.similarity,
+            message: "Face not recognized - Please retry or see front desk",
+            fail_safe_available: true,
+            timestamp: timestamp,
+          },
+          { headers }
+        );
+      }
+    }
+
+    // No vector supplied or vector empty
+    return NextResponse.json(
+      {
+        matched: false,
+        message: "No facial vector received. Please ensure face is well-lit and centered in guide oval.",
+        fail_safe_available: true,
+      },
+      { headers }
+    );
   } catch (err: any) {
     console.error("Attendance verify endpoint error:", err);
     return NextResponse.json(
