@@ -176,24 +176,85 @@ class SupabaseKioskClient(private val context: Context) {
     }
 
     /**
-     * Verifies student or staff member via 4-Digit Backup PIN.
+     * Looks up student/faculty profile preview using their Student or Employee ID.
      */
-    suspend fun verifyPin(
+    suspend fun previewStudentId(
+        studentOrEmpId: String
+    ): Result<StudentPreviewResult> = withContext(Dispatchers.IO) {
+        try {
+            val base = if (activeConfig.supabaseUrl.endsWith("/")) activeConfig.supabaseUrl else "${activeConfig.supabaseUrl}/"
+            val endpoint = "${base}api/attendance/manual-entry"
+
+            val payload = buildJsonObject {
+                put("action", "preview")
+                put("student_or_emp_id", studentOrEmpId.trim())
+            }.toString()
+
+            val url = URL(endpoint)
+            val connection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 4000
+                readTimeout = 4000
+                doOutput = true
+                doInput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+            }
+
+            connection.outputStream.use { os ->
+                OutputStreamWriter(os, "UTF-8").use { writer ->
+                    writer.write(payload)
+                    writer.flush()
+                }
+            }
+
+            val responseCode = connection.responseCode
+            if (responseCode in 200..299) {
+                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                val parsed = json.decodeFromString<StudentPreviewResult>(responseText)
+                return@withContext Result.success(parsed)
+            } else {
+                val errText = try { connection.errorStream?.bufferedReader()?.use { it.readText() } } catch (e: Exception) { null }
+                Log.w("KioskApiClient", "ID preview lookup returned HTTP $responseCode: $errText")
+            }
+        } catch (e: Exception) {
+            Log.e("KioskApiClient", "ID preview lookup error: ${e.message}")
+        }
+
+        Result.success(
+            StudentPreviewResult(
+                success = false,
+                found = false,
+                message = "ID not found in registry"
+            )
+        )
+    }
+
+    /**
+     * Option 1 Two-Factor ATM Verification: Student/Employee ID + Security PIN.
+     * Optionally recalibrates facial biometrics on the spot for seamless future scanning.
+     */
+    suspend fun verifyIdAndPin(
+        studentOrEmpId: String,
         pin: String,
-        studentOrEmpId: String? = null
+        recalibrationVector: FloatArray? = null
     ): Result<AttendanceVerificationResult> = withContext(Dispatchers.IO) {
         try {
             val base = if (activeConfig.supabaseUrl.endsWith("/")) activeConfig.supabaseUrl else "${activeConfig.supabaseUrl}/"
             val endpoint = "${base}api/attendance/manual-entry"
 
             val payload = buildJsonObject {
-                put("pin", pin)
-                if (!studentOrEmpId.isNullOrBlank()) {
-                    put("student_or_emp_id", studentOrEmpId)
-                }
+                put("action", "verify")
+                put("student_or_emp_id", studentOrEmpId.trim())
+                put("pin", pin.trim())
                 put("location_tag", activeConfig.locationTag)
                 put("kiosk_id", activeConfig.kioskId)
                 put("direction", "time_in")
+                if (recalibrationVector != null && recalibrationVector.isNotEmpty()) {
+                    putJsonArray("recalibrate_vector") {
+                        recalibrationVector.forEach { add(JsonPrimitive(it)) }
+                    }
+                }
             }.toString()
 
             val url = URL(endpoint)
@@ -221,19 +282,83 @@ class SupabaseKioskClient(private val context: Context) {
                 return@withContext Result.success(parsed)
             } else {
                 val errText = try { connection.errorStream?.bufferedReader()?.use { it.readText() } } catch (e: Exception) { null }
-                Log.w("KioskApiClient", "PIN verification returned HTTP $responseCode: $errText")
+                Log.w("KioskApiClient", "ID + PIN verification returned HTTP $responseCode: $errText")
             }
         } catch (e: Exception) {
-            Log.e("KioskApiClient", "PIN verification network error: ${e.message}")
+            Log.e("KioskApiClient", "ID + PIN verification network error: ${e.message}")
         }
 
         Result.success(
             AttendanceVerificationResult(
                 matched = false,
-                message = "Invalid 4-digit PIN. Please re-enter or see front desk."
+                message = "Incorrect Student ID or PIN. Please re-check."
             )
         )
     }
+
+    /**
+     * Verifies Digital Attendance Pass QR Code.
+     */
+    suspend fun verifyQrPass(
+        qrPayload: String
+    ): Result<AttendanceVerificationResult> = withContext(Dispatchers.IO) {
+        try {
+            val base = if (activeConfig.supabaseUrl.endsWith("/")) activeConfig.supabaseUrl else "${activeConfig.supabaseUrl}/"
+            val endpoint = "${base}api/attendance/qr-verify"
+
+            val payload = buildJsonObject {
+                put("qr_payload", qrPayload)
+                put("location_tag", activeConfig.locationTag)
+                put("kiosk_id", activeConfig.kioskId)
+                put("direction", "time_in")
+            }.toString()
+
+            val url = URL(endpoint)
+            val connection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 4500
+                readTimeout = 4500
+                doOutput = true
+                doInput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+            }
+
+            connection.outputStream.use { os ->
+                OutputStreamWriter(os, "UTF-8").use { writer ->
+                    writer.write(payload)
+                    writer.flush()
+                }
+            }
+
+            val responseCode = connection.responseCode
+            if (responseCode in 200..299) {
+                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                val parsed = json.decodeFromString<AttendanceVerificationResult>(responseText)
+                return@withContext Result.success(parsed)
+            } else {
+                val errText = try { connection.errorStream?.bufferedReader()?.use { it.readText() } } catch (e: Exception) { null }
+                Log.w("KioskApiClient", "QR Pass verification returned HTTP $responseCode: $errText")
+            }
+        } catch (e: Exception) {
+            Log.e("KioskApiClient", "QR Pass verification network error: ${e.message}")
+        }
+
+        Result.success(
+            AttendanceVerificationResult(
+                matched = false,
+                message = "Digital Pass not found in school registry."
+            )
+        )
+    }
+
+    /**
+     * Backward-compatible 4-digit PIN verification fallback.
+     */
+    suspend fun verifyPin(
+        pin: String,
+        studentOrEmpId: String? = null
+    ): Result<AttendanceVerificationResult> = verifyIdAndPin(studentOrEmpId ?: "", pin)
 
     fun getActiveConfig(): KioskConfig = activeConfig
 }

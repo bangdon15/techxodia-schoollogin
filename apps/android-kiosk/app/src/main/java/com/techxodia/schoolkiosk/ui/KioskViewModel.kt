@@ -11,6 +11,7 @@ import com.techxodia.schoolkiosk.camera.LivenessValidator
 import com.techxodia.schoolkiosk.camera.TFLiteEmbeddingEngine
 import com.techxodia.schoolkiosk.data.AttendanceVerificationResult
 import com.techxodia.schoolkiosk.data.KioskConfig
+import com.techxodia.schoolkiosk.data.StudentPreviewData
 import com.techxodia.schoolkiosk.data.SupabaseKioskClient
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -26,9 +27,10 @@ sealed class KioskUiState {
     data class Success(val result: AttendanceVerificationResult) : KioskUiState()
     data class Unrecognized(val message: String = "Face not recognized - Please retry or see front desk") : KioskUiState()
     data class FailSafe(
-        val promptMessage: String = "Face not recognized. Enter your 4-digit PIN:",
+        val promptMessage: String = "Face not recognized. Use Two-Factor ID or QR Pass:",
         val errorMessage: String? = null,
-        val isVerifying: Boolean = false
+        val isVerifying: Boolean = false,
+        val previewStudent: StudentPreviewData? = null
     ) : KioskUiState()
     data class Offline(val message: String) : KioskUiState()
 }
@@ -51,6 +53,7 @@ class KioskViewModel(application: Application) : AndroidViewModel(application) {
 
     private var toneGenerator: ToneGenerator? = null
     private var verificationJob: Job? = null
+    private var lastExtractedFaceVector: FloatArray? = null
 
     init {
         try {
@@ -61,6 +64,7 @@ class KioskViewModel(application: Application) : AndroidViewModel(application) {
             embeddingEngine = embeddingEngine,
             livenessValidator = livenessValidator,
             onFaceVectorExtracted = { embedding, _ ->
+                lastExtractedFaceVector = embedding
                 onFaceReadyForCloud(embedding)
             },
             onStatusUpdate = { msg ->
@@ -82,7 +86,7 @@ class KioskViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = KioskUiState.Pairing
     }
 
-    fun openFailSafe(message: String = "Face not recognized. Enter your 4-digit backup PIN:") {
+    fun openFailSafe(message: String = "Face not recognized. Use Two-Factor ID or QR Pass:") {
         verificationJob?.cancel()
         analyzer.isSuspended = true
         _uiState.value = KioskUiState.FailSafe(promptMessage = message)
@@ -94,7 +98,7 @@ class KioskViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Triggered when the user taps the "Not you?" button on the Success banner.
-     * Cancels the incorrect attendance entry and presents the 4-Digit PIN fail-safe.
+     * Cancels the incorrect attendance entry and presents the ATM Two-Factor fail-safe.
      */
     fun onNotYouClicked(attendanceId: String?) {
         verificationJob?.cancel()
@@ -106,41 +110,105 @@ class KioskViewModel(application: Application) : AndroidViewModel(application) {
             }
             playChime(false)
             _uiState.value = KioskUiState.FailSafe(
-                promptMessage = "Attendance cancelled. Enter your 4-digit backup PIN to verify:"
+                promptMessage = "Attendance cancelled. Enter your Student ID & PIN to verify:"
             )
         }
     }
 
     /**
-     * Verifies the 4-digit PIN entered via FailSafeDialog.
+     * Live Preview: Looks up Student/Staff Name & Avatar as they type their ID number.
      */
-    fun verifyBackupPin(pin: String) {
+    fun lookupStudentId(idNumber: String) {
+        if (idNumber.length < 3) return
         viewModelScope.launch {
+            val res = supabaseClient.previewStudentId(idNumber)
+            res.onSuccess { r ->
+                if (r.found && r.preview != null) {
+                    val currentState = _uiState.value
+                    if (currentState is KioskUiState.FailSafe) {
+                        _uiState.value = currentState.copy(previewStudent = r.preview)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Option 1 Two-Factor ATM Verification: Student ID + Security PIN.
+     * Automatically recalibrates facial biometrics on the fly!
+     */
+    fun verifyIdAndPin(studentOrEmpId: String, pin: String) {
+        viewModelScope.launch {
+            val currentState = _uiState.value as? KioskUiState.FailSafe
             _uiState.value = KioskUiState.FailSafe(
-                promptMessage = "Verifying PIN...",
-                isVerifying = true
+                promptMessage = "Verifying ID + PIN & recalibrating...",
+                isVerifying = true,
+                previewStudent = currentState?.previewStudent
             )
 
-            val res = supabaseClient.verifyPin(pin)
+            val res = supabaseClient.verifyIdAndPin(
+                studentOrEmpId = studentOrEmpId,
+                pin = pin,
+                recalibrationVector = lastExtractedFaceVector
+            )
+
             res.onSuccess { match ->
                 if (match.matched) {
                     playChime(true)
                     _uiState.value = KioskUiState.Success(match)
-                    delay(2800)
+                    delay(3000)
                     resetToStandby()
                 } else {
                     playChime(false)
                     _uiState.value = KioskUiState.FailSafe(
-                        promptMessage = "Enter your 4-digit backup PIN:",
-                        errorMessage = match.message ?: "Incorrect PIN. Please re-enter your 4-digit PIN.",
+                        promptMessage = "Enter your Student ID & 4-digit PIN:",
+                        errorMessage = match.message ?: "Incorrect Student ID or PIN. Please retry.",
+                        isVerifying = false,
+                        previewStudent = currentState?.previewStudent
+                    )
+                }
+            }.onFailure {
+                playChime(false)
+                _uiState.value = KioskUiState.FailSafe(
+                    promptMessage = "Enter your Student ID & 4-digit PIN:",
+                    errorMessage = "Verification service unreachable. Please retry.",
+                    isVerifying = false,
+                    previewStudent = currentState?.previewStudent
+                )
+            }
+        }
+    }
+
+    /**
+     * Digital QR Code Pass Scanner Verification
+     */
+    fun verifyQrPass(qrPayload: String) {
+        viewModelScope.launch {
+            _uiState.value = KioskUiState.FailSafe(
+                promptMessage = "Scanning Digital Pass...",
+                isVerifying = true
+            )
+
+            val res = supabaseClient.verifyQrPass(qrPayload)
+            res.onSuccess { match ->
+                if (match.matched) {
+                    playChime(true)
+                    _uiState.value = KioskUiState.Success(match)
+                    delay(3000)
+                    resetToStandby()
+                } else {
+                    playChime(false)
+                    _uiState.value = KioskUiState.FailSafe(
+                        promptMessage = "Digital Pass scanning failed.",
+                        errorMessage = match.message ?: "Pass not recognized in school directory.",
                         isVerifying = false
                     )
                 }
             }.onFailure {
                 playChime(false)
                 _uiState.value = KioskUiState.FailSafe(
-                    promptMessage = "Enter your 4-digit backup PIN:",
-                    errorMessage = "Verification failed. Please retry or see front desk.",
+                    promptMessage = "Scan Digital QR Pass:",
+                    errorMessage = "Cloud verification failed. Please see security desk.",
                     isVerifying = false
                 )
             }
@@ -167,16 +235,14 @@ class KioskViewModel(application: Application) : AndroidViewModel(application) {
                 if (match.matched) {
                     playChime(true)
                     _uiState.value = KioskUiState.Success(match)
-                    // Show success banner for 3.0 seconds so user has time to see it and tap "Not you?" if needed
                     delay(3000)
                     resetToStandby()
                 } else {
                     playChime(false)
                     _uiState.value = KioskUiState.Unrecognized(
-                        match.message ?: "Face not recognized - Please retry or see front desk"
+                        match.message ?: "Face not recognized - Please retry or use Student ID"
                     )
-                    // Show unrecognized warning for 2.0 seconds
-                    delay(2000)
+                    delay(2200)
                     resetToStandby()
                 }
             }.onFailure { err ->

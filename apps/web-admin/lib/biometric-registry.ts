@@ -128,11 +128,94 @@ export function registerEnrolledUser(user: Partial<EnrolledBiometricUser> & { st
   return fullUser;
 }
 
+/**
+ * Two-Factor ATM Pattern: Verifies unique Student/Employee ID + Security PIN.
+ * Guaranteed 100% collision-free even with 100,000+ students and staff.
+ */
+export function findUserByIdAndPin(studentOrEmpId: string, pin: string): EnrolledBiometricUser | null {
+  const registry = getBiometricRegistry();
+  const cleanId = studentOrEmpId.trim().toUpperCase();
+  const cleanPin = pin.trim();
+
+  const user = registry.get(cleanId);
+  if (user && user.backup_pin === cleanPin) {
+    return user;
+  }
+  return null;
+}
+
+/**
+ * Returns student/faculty public preview info (Name, Grade, Avatar)
+ * to display confirmation banner on the kiosk during ATM-style entry.
+ */
+export function lookupUserPreview(studentOrEmpId: string): {
+  id: string;
+  student_or_emp_id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  grade_section: string;
+  avatar_url: string;
+} | null {
+  const registry = getBiometricRegistry();
+  const user = registry.get(studentOrEmpId.trim().toUpperCase());
+  if (!user) return null;
+  return {
+    id: user.id,
+    student_or_emp_id: user.student_or_emp_id,
+    first_name: user.first_name,
+    last_name: user.last_name,
+    role: user.role,
+    grade_section: user.grade_section,
+    avatar_url: user.avatar_url,
+  };
+}
+
+/**
+ * Adaptive Self-Healing Calibration:
+ * Updates an enrolled user's face vector after successful ID + PIN confirmation.
+ */
+export function recalibrateBiometrics(studentOrEmpId: string, newVector: number[]): boolean {
+  if (!newVector || newVector.length === 0) return false;
+  const registry = getBiometricRegistry();
+  const user = registry.get(studentOrEmpId.trim().toUpperCase());
+  if (!user) return false;
+
+  user.face_vector = newVector;
+  registry.set(user.student_or_emp_id.toUpperCase(), user);
+  registry.set(user.id, user);
+  return true;
+}
+
+/**
+ * Resolves a scanned Digital Attendance Pass QR Code payload.
+ */
+export function findUserByQrToken(qrPayload: string): EnrolledBiometricUser | null {
+  const registry = getBiometricRegistry();
+  if (!qrPayload) return null;
+
+  try {
+    const parsed = JSON.parse(qrPayload);
+    const empId = parsed.empId || parsed.student_id || parsed.idNumber;
+    if (empId) {
+      const user = registry.get(empId.toString().trim().toUpperCase());
+      if (user) return user;
+    }
+  } catch (_) {
+    // Might be raw student ID string in barcode
+    const rawId = qrPayload.trim().toUpperCase();
+    const user = registry.get(rawId);
+    if (user) return user;
+  }
+
+  return null;
+}
+
 export function findUserByPin(pin: string, idOrEmpId?: string): EnrolledBiometricUser | null {
   const registry = getBiometricRegistry();
   const cleanPin = pin.trim();
 
-  // If student_or_emp_id provided, verify directly
+  // If student_or_emp_id provided, verify directly (Option 1 ATM pattern)
   if (idOrEmpId) {
     const user = registry.get(idOrEmpId.trim().toUpperCase());
     if (user && user.backup_pin === cleanPin) {
@@ -140,7 +223,7 @@ export function findUserByPin(pin: string, idOrEmpId?: string): EnrolledBiometri
     }
   }
 
-  // Otherwise search registry for this unique PIN
+  // Fallback search registry for this unique PIN
   for (const user of Array.from(registry.values())) {
     if (user.backup_pin === cleanPin) {
       return user;

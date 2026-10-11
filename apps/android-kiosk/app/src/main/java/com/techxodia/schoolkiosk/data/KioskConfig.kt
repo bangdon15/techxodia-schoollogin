@@ -103,3 +103,33 @@ data class AttendanceVerificationResult(
     @SerialName("message")
     val message: String? = null
 )
+
+@Serializable
+data class StudentPreviewResult(
+    @SerialName("success")
+    val success: Boolean = false,
+    @SerialName("found")
+    val found: Boolean = false,
+    @SerialName("preview")
+    val preview: StudentPreviewData? = null,
+    @SerialName("message")
+    val message: String? = null
+)
+
+@Serializable
+data class StudentPreviewData(
+    @SerialName("id")
+    val id: String = "",
+    @SerialName("student_or_emp_id")
+    val studentOrEmpId: String = "",
+    @SerialName("first_name")
+    val firstName: String = "",
+    @SerialName("last_name")
+    val lastName: String = "",
+    @SerialName("role")
+    val role: String = "student",
+    @SerialName("grade_section")
+    val gradeSection: String = "",
+    @SerialName("avatar_url")
+    val avatarUrl: String = ""
+)

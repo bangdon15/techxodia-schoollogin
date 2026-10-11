@@ -89,14 +89,17 @@ class KioskMainActivity : ComponentActivity() {
                         )
                     }
 
-                    // Fail-Safe PIN Keypad Overlay
+                    // Fail-Safe ATM Two-Factor & Hub Overlay
                     if (uiState is KioskUiState.FailSafe) {
                         val failSafeState = uiState as KioskUiState.FailSafe
                         FailSafeDialog(
                             promptMessage = failSafeState.promptMessage,
                             isVerifying = failSafeState.isVerifying,
                             errorMessage = failSafeState.errorMessage,
-                            onSubmitPin = { pin -> viewModel.verifyBackupPin(pin) },
+                            previewStudent = failSafeState.previewStudent,
+                            onLookupId = { idNum -> viewModel.lookupStudentId(idNum) },
+                            onSubmitIdAndPin = { idNum, pin -> viewModel.verifyIdAndPin(idNum, pin) },
+                            onSubmitQrPass = { qr -> viewModel.verifyQrPass(qr) },
                             onRetryFaceScan = { viewModel.resetToStandby() },
                             onDismiss = { viewModel.dismissFailSafe() }
                         )
