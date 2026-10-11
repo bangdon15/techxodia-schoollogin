@@ -66,7 +66,37 @@ export default function DashboardOverviewPage() {
     setMounted(true);
   }, []);
 
-  // Subscribe to Supabase Realtime attendance_logs channel
+  // Active live attendance synchronization and polling
+  useEffect(() => {
+    let isSubscribed = true;
+
+    const fetchLiveFeed = async () => {
+      try {
+        const res = await fetch("/api/attendance/feed", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.logs && isSubscribed) {
+            setLogs(data.logs);
+            if (data.stats) {
+              setStats((prev) => ({ ...prev, ...data.stats }));
+            }
+          }
+        }
+      } catch (err) {
+        // silent fallback
+      }
+    };
+
+    fetchLiveFeed();
+    const interval = setInterval(fetchLiveFeed, 2500);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Also subscribe to Supabase Realtime attendance_logs channel if configured
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase

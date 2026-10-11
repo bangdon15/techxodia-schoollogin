@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Download,
   Search,
@@ -130,6 +130,33 @@ export default function AttendanceLogsPage() {
       override_reason: "Approved official faculty meeting extension",
     },
   ]);
+
+  // Synchronize with live attendance feed
+  useEffect(() => {
+    let isSubscribed = true;
+
+    const fetchLogs = async () => {
+      try {
+        const res = await fetch("/api/attendance/feed", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.logs && isSubscribed) {
+            setLogs(data.logs);
+          }
+        }
+      } catch (err) {
+        // silent
+      }
+    };
+
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 3000);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleApplyPreset = (preset: "today" | "this_week" | "period_1_15" | "period_16_end" | "month") => {
     const today = new Date();

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { addAttendanceRecord } from "@/lib/attendance-store";
 
 /**
  * Universal Attendance Verification & Face Biometric Cloud API
@@ -141,6 +142,26 @@ export async function POST(req: NextRequest) {
       timestamp: timestamp,
       message: "Biometrics verified successfully. Welcome, Brandon Jake A. Torres!",
     };
+
+    // Record into live attendance feed store so it instantly reflects on web monitoring
+    addAttendanceRecord({
+      id: verifiedUser.attendance_id,
+      timestamp: verifiedUser.timestamp,
+      student_id: verifiedUser.student_or_emp_id,
+      student_no: verifiedUser.student_or_emp_id,
+      full_name: `${verifiedUser.first_name} ${verifiedUser.last_name}`,
+      name: `${verifiedUser.first_name} ${verifiedUser.last_name}`,
+      grade_section: verifiedUser.grade_section,
+      grade: verifiedUser.grade_section,
+      avatar_url: verifiedUser.avatar_url,
+      location_tag: verifiedUser.location_tag,
+      kiosk: verifiedUser.location_tag,
+      direction: "time_in",
+      status: verifiedUser.status as any,
+      confidence_score: verifiedUser.confidence_score,
+      confidence: `${Math.round(verifiedUser.confidence_score * 100)}%`,
+      verification_method: "face_biometric",
+    });
 
     return NextResponse.json(verifiedUser, { headers });
   } catch (err: any) {
