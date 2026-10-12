@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
         error: "Incorrect Student ID or PIN. Please retry.",
         message: "Authentication failed. Please verify your Student ID and 4-digit PIN.",
       },
-      { status: 400, headers }
+      { status: 401, headers }
     );
   } catch (err: any) {
     return NextResponse.json(
