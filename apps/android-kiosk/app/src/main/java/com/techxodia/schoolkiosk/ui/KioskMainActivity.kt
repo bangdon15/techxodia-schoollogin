@@ -76,7 +76,11 @@ class KioskMainActivity : ComponentActivity() {
                         isVerifying = uiState is KioskUiState.Verifying,
                         isUnrecognized = uiState is KioskUiState.Unrecognized,
                         onSwitchGate = { viewModel.openGateSelector() },
-                        onOpenFailSafe = { viewModel.openFailSafe() }
+                        onOpenFailSafe = { viewModel.openFailSafe() },
+                        onAdminExit = {
+                            policyController.exitKioskMode()
+                            finish()
+                        }
                     )
 
                     // Branded Success Modal with "Not you?" Fail-Safe
@@ -119,8 +123,17 @@ class KioskMainActivity : ComponentActivity() {
         if (hasFocus) policyController.enterKioskMode()
     }
 
+    private var lastBackPressTime: Long = 0L
+
     @Deprecated("Deprecated in Java", ReplaceWith("Unit"))
     override fun onBackPressed() {
-        // Block back navigation gesture in Lock Task Mode
+        val now = System.currentTimeMillis()
+        if (now - lastBackPressTime < 2500) {
+            policyController.exitKioskMode()
+            finish()
+        } else {
+            lastBackPressTime = now
+            android.widget.Toast.makeText(this, "Tap BACK again or tap School Logo 5 times to exit", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 }

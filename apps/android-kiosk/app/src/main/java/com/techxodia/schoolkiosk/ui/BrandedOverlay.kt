@@ -58,7 +58,8 @@ fun BrandedOverlay(
     isVerifying: Boolean,
     isUnrecognized: Boolean,
     onSwitchGate: () -> Unit = {},
-    onOpenFailSafe: () -> Unit = {}
+    onOpenFailSafe: () -> Unit = {},
+    onAdminExit: () -> Unit = {}
 ) {
     var currentTime by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
@@ -137,9 +138,22 @@ fun BrandedOverlay(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = CircleShape, color = Color(0xFF1E3A8A), modifier = Modifier.size(42.dp)) {
+                        var tapCount by remember { mutableStateOf(0) }
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFF1E3A8A),
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clickable {
+                                    tapCount++
+                                    if (tapCount >= 5) {
+                                        onAdminExit()
+                                        tapCount = 0
+                                    }
+                                }
+                        ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.School, contentDescription = "Logo", tint = Color.White)
+                                Icon(Icons.Default.School, contentDescription = "School Logo (Tap 5x to Exit)", tint = Color.White)
                             }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
